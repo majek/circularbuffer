@@ -100,3 +100,9 @@ func (b *CircularBuffer) Empty() bool {
 	// b.avail is a channel, no need for a lock
 	return len(b.avail) == 0
 }
+
+// Length of the buffer
+func (b *CircularBuffer) Length() int {
+	// b.avail is a channel, no need for a lock
+	return len(b.avail)
+}
