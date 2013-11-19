@@ -11,6 +11,15 @@ import (
 	"sync"
 )
 
+type StackPusher interface {
+	NBPush(interface{}) interface{}
+}
+
+type StackGetter interface {
+	Get() interface{}
+	Pop() interface{}
+}
+
 type CircularBuffer struct {
 	start  uint // idx of first used cell
 	pos    uint // idx of first unused cell
