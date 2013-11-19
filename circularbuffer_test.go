@@ -39,16 +39,15 @@ func TestSyncGet(t *testing.T) {
 func TestSyncOverflow(t *testing.T) {
 	c := NewCircularBuffer(10) // max 9 items in the buffer
 
-	evicted := 0
-	c.Evict = func(v interface{}) {
-		evicted += 1
-		if v.(int) != 0 {
+	for i := 0; i < 9; i++ {
+		v := c.NBPush(i)
+		if v != nil {
 			t.Error(v)
 		}
 	}
-
-	for i := 0; i < 10; i++ {
-		c.NBPush(i)
+	v := c.NBPush(9)
+	if v != 0 {
+		t.Error(v)
 	}
 
 	for i := 1; i < 10; i++ {
@@ -60,10 +59,6 @@ func TestSyncOverflow(t *testing.T) {
 
 	if c.verifyIsEmpty() != true {
 		t.Error("not empty")
-	}
-
-	if evicted != 1 {
-		t.Error("wrong evict count", evicted)
 	}
 }
 

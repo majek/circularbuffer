@@ -1,3 +1,10 @@
+// Circular buffer implementation.
+// Features:
+//  - no memory allocations during push/pop
+//  - nonblocking push (ie: evict old data)
+//  - pop item from the top
+//  - concurrent (through locking)
+//
 package circularbuffer
 
 import (
@@ -11,18 +18,19 @@ type CircularBuffer struct {
 	size   uint
 	avail  chan bool // poor man's semaphore
 	lock   sync.Mutex
-	Evict  func(interface{})
 }
 
+// Create CircularBuffer object with a prealocated buffer of a given size.
 func NewCircularBuffer(size uint) *CircularBuffer {
-	b := new(CircularBuffer)
-	b.buffer = make([]interface{}, size)
-	b.size = size
-	b.avail = make(chan bool, size)
-	return b
+	return &CircularBuffer{
+		buffer: make([]interface{}, size),
+		size: size,
+		avail: make(chan bool, size),
+	}
 }
 
-func (b *CircularBuffer) NBPush(v interface{}) {
+// Nonblocking push. Returns the evicted item or nil.
+func (b *CircularBuffer) NBPush(v interface{}) interface{} {
 	b.lock.Lock()
 	defer b.lock.Unlock()
 
@@ -32,18 +40,18 @@ func (b *CircularBuffer) NBPush(v interface{}) {
 		evictv := b.buffer[b.start]
 		b.buffer[b.start] = nil
 		b.start = (b.start + 1) % b.size
-		if b.Evict != nil {
-			b.Evict(evictv)
-		}
+		return evictv
 	} else {
 		select {
 		case b.avail <- true:
 		default:
 			panic("Sending to avail channel must never block")
 		}
+		return nil
 	}
 }
 
+// Get an item from the beginning of the queue (oldest), blocking.
 func (b *CircularBuffer) Get() interface{} {
 	_ = <-b.avail
 
@@ -60,6 +68,7 @@ func (b *CircularBuffer) Get() interface{} {
 	return v
 }
 
+// Blocking pop an item from the end of the queue (newest), blocking.
 func (b *CircularBuffer) Pop() interface{} {
 	_ = <-b.avail
 
@@ -77,6 +86,8 @@ func (b *CircularBuffer) Pop() interface{} {
 	return v
 }
 
+// Is the buffer empty?
 func (b *CircularBuffer) Empty() bool {
+	// b.avail is a channel, no need for a lock
 	return len(b.avail) == 0
 }
