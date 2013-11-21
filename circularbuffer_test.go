@@ -37,7 +37,7 @@ func TestSyncGet(t *testing.T) {
 }
 
 func TestSyncOverflow(t *testing.T) {
-	c := NewCircularBuffer(10) // max 9 items in the buffer
+	c := NewCircularBuffer(10) // up to 9 items in the buffer
 
 	for i := 0; i < 9; i++ {
 		v := c.NBPush(i)

@@ -5,6 +5,11 @@
 //  - pop item from the top
 //  - concurrent (through locking)
 //
+// Semantics of eviction:
+//  - empty Evict callback - return evicted item when
+//    calling NBPush.
+//  - Evict callback present - return nil to NBPush
+//    and call Evict() inline.
 package circularbuffer
 
 import (
@@ -25,7 +30,7 @@ type CircularBuffer struct {
 	pos    uint // idx of first unused cell
 	buffer []interface{}
 	size   uint
-	avail  chan bool // poor man's semaphore
+	avail  chan bool // poor man's semaphore. len(avail) is always equal to (size + pos - start) % size
 	lock   sync.Mutex
 }
 
@@ -38,7 +43,8 @@ func NewCircularBuffer(size uint) *CircularBuffer {
 	}
 }
 
-// Nonblocking push. Returns the evicted item or nil.
+// Nonblocking push. If the Evict callback is not set returns the
+// evicted item (if any), otherwise nil.
 func (b *CircularBuffer) NBPush(v interface{}) interface{} {
 	b.lock.Lock()
 	defer b.lock.Unlock()
@@ -46,6 +52,9 @@ func (b *CircularBuffer) NBPush(v interface{}) interface{} {
 	b.buffer[b.pos] = v
 	b.pos = (b.pos + 1) % b.size
 	if b.pos == b.start {
+		// Remove old item from the bottom of the stack to
+		// free the space for the new one. This doesn't change
+		// the length of the stack, so no need to touch avail.
 		evictv := b.buffer[b.start]
 		b.buffer[b.start] = nil
 		b.start = (b.start + 1) % b.size
