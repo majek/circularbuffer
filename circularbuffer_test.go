@@ -137,7 +137,6 @@ func TestSyncOverflowEvictCallback(t *testing.T) {
 		evicted += 1
 	}
 
-
 	for i := 0; i < 18; i++ {
 		v := c.NBPush(i)
 		if v != nil {

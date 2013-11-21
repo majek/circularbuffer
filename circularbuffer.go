@@ -39,8 +39,8 @@ type CircularBuffer struct {
 func NewCircularBuffer(size uint) *CircularBuffer {
 	return &CircularBuffer{
 		buffer: make([]interface{}, size),
-		size: size,
-		avail: make(chan bool, size),
+		size:   size,
+		avail:  make(chan bool, size),
 	}
 }
 
