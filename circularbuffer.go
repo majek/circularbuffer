@@ -72,6 +72,7 @@ func (b *CircularBuffer) Get() interface{} {
 	}
 
 	v := b.buffer[b.start]
+	b.buffer[b.pos] = nil
 	b.start = (b.start + 1) % b.size
 
 	return v
