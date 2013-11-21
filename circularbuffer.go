@@ -32,6 +32,7 @@ type CircularBuffer struct {
 	size   uint
 	avail  chan bool // poor man's semaphore. len(avail) is always equal to (size + pos - start) % size
 	lock   sync.Mutex
+	Evict  func(v interface{})
 }
 
 // Create CircularBuffer object with a prealocated buffer of a given size.
@@ -46,8 +47,8 @@ func NewCircularBuffer(size uint) *CircularBuffer {
 // Nonblocking push. If the Evict callback is not set returns the
 // evicted item (if any), otherwise nil.
 func (b *CircularBuffer) NBPush(v interface{}) interface{} {
+	var evictv interface{}
 	b.lock.Lock()
-	defer b.lock.Unlock()
 
 	b.buffer[b.pos] = v
 	b.pos = (b.pos + 1) % b.size
@@ -55,18 +56,24 @@ func (b *CircularBuffer) NBPush(v interface{}) interface{} {
 		// Remove old item from the bottom of the stack to
 		// free the space for the new one. This doesn't change
 		// the length of the stack, so no need to touch avail.
-		evictv := b.buffer[b.start]
+		evictv = b.buffer[b.start]
 		b.buffer[b.start] = nil
 		b.start = (b.start + 1) % b.size
-		return evictv
 	} else {
 		select {
 		case b.avail <- true:
 		default:
 			panic("Sending to avail channel must never block")
 		}
+	}
+	b.lock.Unlock()
+	if evictv != nil && b.Evict != nil {
+		// Outside the lock. User callback may in want to add
+		// an item to the stack.
+		b.Evict(evictv)
 		return nil
 	}
+	return evictv
 }
 
 // Get an item from the beginning of the queue (oldest), blocking.

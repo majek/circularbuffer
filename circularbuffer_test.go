@@ -125,3 +125,38 @@ func TestASyncPop(t *testing.T) {
 	c.NBPush(1)
 	c.NBPush(0)
 }
+
+func TestSyncOverflowEvictCallback(t *testing.T) {
+	c := NewCircularBuffer(10) // up to 9 items in the buffer
+
+	evicted := 0
+	c.Evict = func(v interface{}) {
+		if v.(int) != evicted {
+			t.Error(v)
+		}
+		evicted += 1
+	}
+
+
+	for i := 0; i < 18; i++ {
+		v := c.NBPush(i)
+		if v != nil {
+			t.Error(v)
+		}
+	}
+
+	for i := 9; i < 18; i++ {
+		v := c.Get().(int)
+		if i != v {
+			t.Error(v)
+		}
+	}
+
+	if evicted != 9 {
+		t.Error(evicted)
+	}
+
+	if c.verifyIsEmpty() != true {
+		t.Error("not empty")
+	}
+}
